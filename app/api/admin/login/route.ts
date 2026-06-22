@@ -8,6 +8,7 @@ type AdminRow = {
   id: number;
   username: string;
   display_name: string | null;
+  role: "master" | "manager" | "sub_manager";
   password_hash: string;
 };
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
 
     const sql = getSql();
     const rows = await sql`
-      SELECT id, username, display_name, password_hash
+      SELECT id, username, display_name, role, password_hash
       FROM public.admin
       WHERE username = ${username} AND is_active = true
       LIMIT 1
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
       createSessionToken({
         adminId: admin.id,
         username: admin.username,
-        displayName: admin.display_name || admin.username
+        displayName: admin.display_name || admin.username,
+        role: admin.role
       }),
       getAdminCookieOptions()
     );

@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { ko } from "date-fns/locale/ko";
+import "react-datepicker/dist/react-datepicker.css";
+
+registerLocale("ko", ko);
 
 type ChronicleRow = {
   id: number;
@@ -13,11 +18,7 @@ type ChronicleRow = {
 };
 
 type ChronicleForm = {
-  year: string;
-  month: string;
-  day: string;
-  hour: string;
-  minute: string;
+  eventAt: Date | null;
   nations: string[];
   content: string;
 };
@@ -32,16 +33,11 @@ const nationBadgeClassMap: Record<string, string> = {
 
 const fixedCreateYear = "2026";
 const fixedCreateMonth = "08";
-const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
-const hourOptions = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
-const minuteOptions = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
+const minChronicleDate = new Date(2026, 7, 1, 0, 0, 0);
+const maxChronicleDate = new Date(2026, 7, 31, 23, 55, 0);
 
 const emptyForm: ChronicleForm = {
-  year: fixedCreateYear,
-  month: fixedCreateMonth,
-  day: "",
-  hour: "00",
-  minute: "00",
+  eventAt: null,
   nations: [],
   content: ""
 };
@@ -53,30 +49,34 @@ function parseNations(value: string) {
     .filter(Boolean);
 }
 
-function parseDateParts(value: string) {
+function parseChronicleDate(value: string) {
   const date = value.slice(0, 10);
   const time = value.slice(11, 16);
-  const [year = "", month = "", day = ""] = date.split("-");
-  const [hour = "00", minute = "00"] = time.split(":");
-  return { year, month, day, hour, minute };
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour = 0, minute = 0] = time.split(":").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day, hour, minute, 0);
 }
 
 function toChronicleForm(entry: ChronicleRow): ChronicleForm {
-  const { day, hour, minute } = parseDateParts(entry.event_at);
   return {
-    year: fixedCreateYear,
-    month: fixedCreateMonth,
-    day,
-    hour,
-    minute,
+    eventAt: parseChronicleDate(entry.event_at),
     nations: parseNations(entry.nation),
     content: entry.content
   };
 }
 
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
 function buildDateString(form: ChronicleForm) {
-  if (!form.day) return "";
-  return `${fixedCreateYear}-${fixedCreateMonth}-${form.day} ${form.hour || "00"}:${form.minute || "00"}`;
+  if (!form.eventAt) return "";
+  return `${fixedCreateYear}-${fixedCreateMonth}-${padDatePart(form.eventAt.getDate())} ${padDatePart(form.eventAt.getHours())}:${padDatePart(form.eventAt.getMinutes())}`;
 }
 
 function sortEntriesAscending(entries: ChronicleRow[]) {
@@ -92,58 +92,29 @@ function DateSelectGroup({
   onChange
 }: {
   form: ChronicleForm;
-  onChange: (field: "day" | "hour" | "minute", value: string) => void;
+  onChange: (value: Date | null) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-2">
-      <input
-        value={fixedCreateYear}
-        disabled
-        className="h-11 rounded-lg border border-[var(--border)] bg-black/20 px-3 text-[#bca57a] outline-none"
+    <div className="admin-datetime-picker">
+      <DatePicker
+        selected={form.eventAt}
+        onChange={onChange}
+        locale="ko"
+        showTimeSelect
+        timeIntervals={5}
+        timeCaption="시간"
+        minDate={minChronicleDate}
+        maxDate={maxChronicleDate}
+        minTime={minChronicleDate}
+        maxTime={maxChronicleDate}
+        dateFormat="yyyy년 MM월 dd일 HH:mm"
+        placeholderText="2026년 08월 일시 선택"
+        shouldCloseOnSelect={false}
+        className="h-11 w-full rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
+        calendarClassName="admin-datepicker-calendar"
+        popperClassName="admin-datepicker-popper"
+        portalId="admin-datepicker-portal"
       />
-
-      <input
-        value={fixedCreateMonth}
-        disabled
-        className="h-11 rounded-lg border border-[var(--border)] bg-black/20 px-3 text-[#bca57a] outline-none"
-      />
-
-      <select
-        value={form.day}
-        onChange={(event) => onChange("day", event.target.value)}
-        className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-      >
-        <option value="">일</option>
-        {dayOptions.map((day) => (
-          <option key={day} value={day}>
-            {day}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={form.hour}
-        onChange={(event) => onChange("hour", event.target.value)}
-        className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-      >
-        {hourOptions.map((hour) => (
-          <option key={hour} value={hour}>
-            {hour}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={form.minute}
-        onChange={(event) => onChange("minute", event.target.value)}
-        className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-      >
-        {minuteOptions.map((minute) => (
-          <option key={minute} value={minute}>
-            {minute}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }
@@ -181,20 +152,20 @@ export function AdminChronicleEditor() {
     [createForm.nations]
   );
 
-  function updateCreateDate(field: "day" | "hour" | "minute", value: string) {
-    setCreateForm((current) => ({ ...current, [field]: value }));
+  function updateCreateDate(value: Date | null) {
+    setCreateForm((current) => ({ ...current, eventAt: value }));
   }
 
   function updateCreateContent(value: string) {
     setCreateForm((current) => ({ ...current, content: value }));
   }
 
-  function updateEditDate(id: number, field: "day" | "hour" | "minute", value: string) {
+  function updateEditDate(id: number, value: Date | null) {
     setEditForms((current) => ({
       ...current,
       [id]: {
         ...current[id],
-        [field]: value
+        eventAt: value
       }
     }));
   }
@@ -353,58 +324,15 @@ export function AdminChronicleEditor() {
 
   return (
     <div className="grid gap-5 font-['Noto_Sans_KR','Malgun_Gothic',sans-serif]">
-      <section className="pixel-frame p-5">
+      <div id="admin-datepicker-portal" />
+
+      <section className="pixel-frame admin-chronicle-create-panel p-5">
         <h2 className="mb-5 text-lg font-black text-[#f3e7d0]">연대기 추가</h2>
 
-        <div className="grid gap-4 xl:grid-cols-[420px_240px_minmax(0,1fr)_140px]">
+        <div className="grid gap-4 xl:grid-cols-[300px_240px_minmax(0,1fr)_140px]">
           <label className="grid gap-2">
             <span className="text-sm font-bold text-[#dbc292]">발생일</span>
-            <div className="grid grid-cols-5 gap-2">
-              <input
-                value={fixedCreateYear}
-                disabled
-                className="h-11 rounded-lg border border-[var(--border)] bg-black/20 px-3 text-[#bca57a] outline-none"
-              />
-              <input
-                value={fixedCreateMonth}
-                disabled
-                className="h-11 rounded-lg border border-[var(--border)] bg-black/20 px-3 text-[#bca57a] outline-none"
-              />
-              <select
-                value={createForm.day}
-                onChange={(event) => updateCreateDate("day", event.target.value)}
-                className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-              >
-                <option value="">일</option>
-                {dayOptions.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={createForm.hour}
-                onChange={(event) => updateCreateDate("hour", event.target.value)}
-                className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-              >
-                {hourOptions.map((hour) => (
-                  <option key={hour} value={hour}>
-                    {hour}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={createForm.minute}
-                onChange={(event) => updateCreateDate("minute", event.target.value)}
-                className="h-11 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
-              >
-                {minuteOptions.map((minute) => (
-                  <option key={minute} value={minute}>
-                    {minute}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <DateSelectGroup form={createForm} onChange={updateCreateDate} />
           </label>
 
           <label className="grid gap-2">
@@ -467,7 +395,7 @@ export function AdminChronicleEditor() {
 
       {status ? <p className="pixel-frame p-4 text-sm text-[#f3e7d0]">{status}</p> : null}
 
-      <section className="pixel-frame overflow-hidden">
+      <section className="pixel-frame admin-chronicle-list-panel">
         <div className="border-b border-[var(--border)] px-5 py-4">
           <h2 className="text-lg font-black text-[#f3e7d0]">연대기 목록</h2>
         </div>
@@ -496,9 +424,9 @@ export function AdminChronicleEditor() {
                   return (
                     <tr key={entry.id} className="border-t border-[rgba(212,167,86,0.14)] align-top text-[#f3e7d0]">
                       <td className="px-3 py-3">
-                        {form ? <DateSelectGroup form={form} onChange={(field, value) => updateEditDate(entry.id, field, value)} /> : null}
+                        {form ? <DateSelectGroup form={form} onChange={(value) => updateEditDate(entry.id, value)} /> : null}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="min-w-[260px] px-3 py-3">
                         <div className="grid gap-2">
                           <select
                             value=""
@@ -506,7 +434,7 @@ export function AdminChronicleEditor() {
                               addNationToEdit(entry.id, event.target.value);
                               event.target.value = "";
                             }}
-                            className="h-11 w-44 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
+                            className="h-11 w-60 rounded-lg border border-[var(--border)] bg-black/40 px-3 text-[#f3e7d0] outline-none"
                           >
                             <option value="">{selectableNations.length ? "국가 선택" : "모든 국가 선택됨"}</option>
                             {selectableNations.map((nation) => (
@@ -516,7 +444,7 @@ export function AdminChronicleEditor() {
                             ))}
                           </select>
 
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-nowrap gap-2">
                             {form?.nations.map((nation) => (
                               <button
                                 key={nation}

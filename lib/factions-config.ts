@@ -3,7 +3,7 @@ export const nationConfigs = [
     key: "위나라",
     short: "위",
     color: "#2f73c8",
-    description: "조경훈의 버인협회를 중심으로, 박재박의 털즈란과 로기다의 로스타시티라는 변수를 품은 전통의 강호 세력"
+    description: "조경훈의 버인협회를 중심으로, 박재박의 버블란과 로기다의 로스타시티라는 변수를 품은 전통의 강호 세력"
   },
   {
     key: "촉나라",
@@ -22,7 +22,7 @@ export const nationConfigs = [
 export const crewBadgeClassMap: Record<string, string> = {
   "버인협회": "bg-[#9fd2ff]/28 text-[#eef7ff] ring-[#9fd2ff]/50",
   "로스타시티": "bg-[#5a8dff]/24 text-[#e6eeff] ring-[#5a8dff]/48",
-  "털즈란": "bg-[#244fba]/24 text-[#dbe6ff] ring-[#244fba]/48",
+  "버블란": "bg-[#244fba]/24 text-[#dbe6ff] ring-[#244fba]/48",
 
   "버컴퍼니": "bg-[#a8efc8]/28 text-[#effff5] ring-[#a8efc8]/50",
   "꾸한성": "bg-[#2fae63]/24 text-[#e1ffec] ring-[#2fae63]/48",

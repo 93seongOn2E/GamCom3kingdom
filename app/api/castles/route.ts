@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { ADMIN_SESSION_COOKIE, verifySessionToken } from "@/lib/admin-auth";
+import { getAdminSessionFromRequest } from "@/lib/admin-request";
+import { writeAdminAuditLog } from "@/lib/admin-audit";
+import { getSql } from "@/lib/db";
 import { getCachedCastleData, getCastleData } from "@/lib/public-data";
 
 export async function GET(request: Request) {
@@ -18,21 +20,14 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const token = request.headers
-    .get("cookie")
-    ?.split(";")
-    .map((item) => item.trim())
-    .find((item) => item.startsWith(`${ADMIN_SESSION_COOKIE}=`))
-    ?.split("=")[1];
+  const session = getAdminSessionFromRequest(request);
 
-  if (!verifySessionToken(token)) {
+  if (!session) {
     return NextResponse.json({ message: "관리자 로그인이 필요합니다." }, { status: 401 });
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    return NextResponse.json({ message: "DATABASE_URL이 설정되지 않았습니다." }, { status: 500 });
+  if (session.role !== "master") {
+    return NextResponse.json({ message: "영토 수정은 마스터 권한만 가능합니다." }, { status: 403 });
   }
 
   try {
@@ -72,8 +67,20 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "세력을 확인해주세요." }, { status: 400 });
     }
 
-    const { neon } = await import("@neondatabase/serverless");
-    const sql = neon(databaseUrl);
+    const sql = getSql();
+    const beforeRows = await sql`
+      SELECT castle_key, name, level, map_x, map_y, area_scale, kingdom, updated_at
+      FROM public.castle
+      WHERE castle_key = ${castleKey}
+      LIMIT 1
+    `;
+
+    const before = beforeRows[0];
+
+    if (!before) {
+      return NextResponse.json({ message: "해당 성을 찾을 수 없습니다." }, { status: 404 });
+    }
+
     const rows = await sql`
       UPDATE public.castle
       SET name = ${name},
@@ -90,6 +97,15 @@ export async function PATCH(request: Request) {
     if (rows.length === 0) {
       return NextResponse.json({ message: "해당 성을 찾을 수 없습니다." }, { status: 404 });
     }
+
+    await writeAdminAuditLog(sql, {
+      entityType: "castle",
+      entityId: castleKey,
+      action: "update",
+      actor: session,
+      beforeData: before,
+      afterData: rows[0]
+    });
 
     revalidateTag("public-castles");
 

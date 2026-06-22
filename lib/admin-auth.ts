@@ -8,6 +8,7 @@ export type AdminSession = {
   adminId: number;
   username: string;
   displayName: string;
+  role: "master" | "manager" | "sub_manager";
   exp: number;
 };
 
@@ -84,7 +85,7 @@ export function verifySessionToken(token?: string | null) {
   try {
     const payload = JSON.parse(fromBase64Url(encodedPayload)) as AdminSession;
 
-    if (!payload.adminId || !payload.username || !payload.displayName || payload.exp < Math.floor(Date.now() / 1000)) {
+    if (!payload.adminId || !payload.username || !payload.displayName || !payload.role || payload.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
 

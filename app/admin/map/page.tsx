@@ -12,6 +12,10 @@ export default async function AdminMapPage() {
     redirect("/admin/login");
   }
 
+  if (session.role !== "master") {
+    redirect("/admin/factions");
+  }
+
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-6">
       <div className="mb-4">
@@ -23,7 +27,7 @@ export default async function AdminMapPage() {
           </p>
         </div>
       </div>
-      <AdminSectionNav />
+      <AdminSectionNav role={session.role} />
       <AdminMapEditor />
     </div>
   );

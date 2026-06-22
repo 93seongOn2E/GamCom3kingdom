@@ -6,15 +6,17 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/admin/map", label: "영토" },
   { href: "/admin/factions", label: "세력" },
-  { href: "/admin/chronicle", label: "연대기" }
+  { href: "/admin/chronicle", label: "연대기" },
+  { href: "/admin/password", label: "비밀번호 변경" }
 ];
 
-export function AdminSectionNav() {
+export function AdminSectionNav({ role }: { role?: string }) {
   const pathname = usePathname();
+  const visibleItems = role === "master" ? items : items.filter((item) => item.href !== "/admin/map");
 
   return (
     <nav className="mb-5 flex flex-wrap gap-2">
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const active = pathname === item.href;
 
         return (

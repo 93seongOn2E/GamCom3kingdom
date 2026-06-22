@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { getSql } from "@/lib/db";
 import { getAdminSessionFromRequest } from "@/lib/admin-request";
+import { writeAdminAuditLog } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,15 @@ export async function POST(request: Request) {
         to_char(created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') AS created_at
     `) as ChronicleRow[];
 
+    await writeAdminAuditLog(sql, {
+      entityType: "chronicle",
+      entityId: rows[0].id,
+      action: "create",
+      actor: session,
+      beforeData: null,
+      afterData: rows[0]
+    });
+
     revalidateTag("public-chronicle");
 
     return NextResponse.json({ entry: rows[0] });
@@ -110,7 +120,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!getAdminSessionFromRequest(request)) {
+  const session = getAdminSessionFromRequest(request);
+
+  if (!session) {
     return unauthorized();
   }
 
@@ -132,6 +144,26 @@ export async function PATCH(request: Request) {
     }
 
     const sql = getSql();
+    const beforeRows = (await sql`
+      SELECT
+        id,
+        to_char(event_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI') AS event_at,
+        nation,
+        content,
+        is_deleted,
+        author_name,
+        to_char(created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') AS created_at
+      FROM public.chronicle
+      WHERE id = ${id} AND is_deleted = FALSE
+      LIMIT 1
+    `) as ChronicleRow[];
+
+    const before = beforeRows[0];
+
+    if (!before) {
+      return NextResponse.json({ message: "수정할 연대기를 찾을 수 없습니다." }, { status: 404 });
+    }
+
     const rows = (await sql`
       UPDATE public.chronicle
       SET
@@ -153,6 +185,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "수정할 연대기를 찾을 수 없습니다." }, { status: 404 });
     }
 
+    await writeAdminAuditLog(sql, {
+      entityType: "chronicle",
+      entityId: id,
+      action: "update",
+      actor: session,
+      beforeData: before,
+      afterData: rows[0]
+    });
+
     revalidateTag("public-chronicle");
 
     return NextResponse.json({ entry: rows[0] });
@@ -163,7 +204,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!getAdminSessionFromRequest(request)) {
+  const session = getAdminSessionFromRequest(request);
+
+  if (!session) {
     return unauthorized();
   }
 
@@ -176,16 +219,45 @@ export async function DELETE(request: Request) {
     }
 
     const sql = getSql();
+    const beforeRows = (await sql`
+      SELECT
+        id,
+        to_char(event_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI') AS event_at,
+        nation,
+        content,
+        is_deleted,
+        author_name,
+        to_char(created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') AS created_at
+      FROM public.chronicle
+      WHERE id = ${id} AND is_deleted = FALSE
+      LIMIT 1
+    `) as ChronicleRow[];
+
+    const before = beforeRows[0];
+
+    if (!before) {
+      return NextResponse.json({ message: "삭제할 연대기를 찾을 수 없습니다." }, { status: 404 });
+    }
+
     const rows = await sql`
       UPDATE public.chronicle
       SET is_deleted = TRUE
       WHERE id = ${id} AND is_deleted = FALSE
-      RETURNING id
+      RETURNING id, event_at, nation, content, is_deleted, author_name, created_at
     `;
 
     if (!rows[0]) {
       return NextResponse.json({ message: "삭제할 연대기를 찾을 수 없습니다." }, { status: 404 });
     }
+
+    await writeAdminAuditLog(sql, {
+      entityType: "chronicle",
+      entityId: id,
+      action: "delete",
+      actor: session,
+      beforeData: before,
+      afterData: rows[0]
+    });
 
     revalidateTag("public-chronicle");
 

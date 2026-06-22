@@ -14,6 +14,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     authenticated: Boolean(session),
-    user: session ? { username: session.username, displayName: session.displayName } : null
+    user: session ? { username: session.username, displayName: session.displayName, role: session.role } : null
   });
 }

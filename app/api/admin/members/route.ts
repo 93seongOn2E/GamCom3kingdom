@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
 import { getAdminSessionFromRequest } from "@/lib/admin-request";
+import { writeAdminAuditLog } from "@/lib/admin-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!getAdminSessionFromRequest(request)) {
+  const session = getAdminSessionFromRequest(request);
+
+  if (!session) {
     return unauthorized();
   }
 
@@ -86,6 +89,19 @@ export async function PATCH(request: Request) {
     }
 
     const sql = getSql();
+    const beforeRows = (await sql`
+      SELECT id, nation, crew_name, nickname, job, weapon, helmet, armor, shoes, updated_at
+      FROM public.member
+      WHERE id = ${id}
+      LIMIT 1
+    `) as Array<MemberRow & { updated_at: string }>;
+
+    const before = beforeRows[0];
+
+    if (!before) {
+      return NextResponse.json({ message: "저장할 멤버를 찾을 수 없습니다." }, { status: 404 });
+    }
+
     const rows = (await sql`
       UPDATE public.member
       SET
@@ -102,6 +118,15 @@ export async function PATCH(request: Request) {
     if (!rows[0]) {
       return NextResponse.json({ message: "저장할 멤버를 찾을 수 없습니다." }, { status: 404 });
     }
+
+    await writeAdminAuditLog(sql, {
+      entityType: "member",
+      entityId: id,
+      action: "update",
+      actor: session,
+      beforeData: before,
+      afterData: rows[0]
+    });
 
     return NextResponse.json({ member: rows[0] });
   } catch (error) {
