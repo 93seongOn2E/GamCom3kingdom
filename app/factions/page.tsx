@@ -1,6 +1,8 @@
 import { getSql } from "@/lib/db";
 import { crewBadgeClassMap, getHiddenJobBadge, nationConfigs } from "@/lib/factions-config";
 
+export const revalidate = 15;
+
 type MemberRow = {
   nation: string;
   crew_name: string;

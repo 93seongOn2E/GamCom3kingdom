@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSql } from "@/lib/db";
 import { getAdminSessionFromRequest } from "@/lib/admin-request";
 import { writeAdminAuditLog } from "@/lib/admin-audit";
@@ -127,6 +128,8 @@ export async function PATCH(request: Request) {
       beforeData: before,
       afterData: rows[0]
     });
+
+    revalidatePath("/factions");
 
     return NextResponse.json({ member: rows[0] });
   } catch (error) {
