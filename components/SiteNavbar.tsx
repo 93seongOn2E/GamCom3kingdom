@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Monitor, Home, Menu, Radio, ScrollText, Swords, X } from "lucide-react";
+import { Monitor, Home, Menu, Radio, ScrollText, Swords, Video, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const baseNavItems = [
   { href: "/", label: "홈", icon: Home },
+  { href: "/about", label: "티저영상", icon: Video },
   { href: "/factions", label: "장비현황", icon: Swords },
   { href: "/broadcast", label: "지통실", icon: Radio },
   { href: "/multiview", label: "멀티뷰", icon: Monitor }

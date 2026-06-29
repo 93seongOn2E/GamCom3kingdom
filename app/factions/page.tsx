@@ -2,6 +2,7 @@ import { getSql } from "@/lib/db";
 import { crewBadgeClassMap, getHiddenJobBadge, nationConfigs } from "@/lib/factions-config";
 
 export const revalidate = 15;
+const nationMemberSlotCount = 30;
 
 type MemberRow = {
   nation: string;
@@ -51,6 +52,9 @@ export default async function FactionsPage() {
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-black text-[#f3e7d0]">장비현황</h1>
+          <p className="mt-2 text-sm font-medium leading-6 text-[#aa9a82]">
+            장비 정보는 관리자가 방송·제보 내용을 확인한 뒤 입력하므로 실제 실시간 정보와 다를 수 있습니다.
+          </p>
         </div>
 
         <div className="pixel-frame px-4 py-3">
@@ -81,12 +85,18 @@ export default async function FactionsPage() {
       <div className="grid gap-6 xl:grid-cols-3">
         {nationConfigs.map((nation) => {
           const rows = membersByNation[nation.key] ?? [];
+          const emptySlotCount = Math.max(0, nationMemberSlotCount - rows.length);
 
           return (
             <section key={nation.key} className="pixel-frame overflow-hidden">
               <div className="border-b border-[var(--border)] px-5 py-5">
                 <div className="mb-3 h-2 w-16" style={{ background: nation.color }} />
-                <h2 className="mb-2 text-2xl font-extrabold tracking-[-0.02em] text-[#f3e7d0]">{nation.short}나라</h2>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-extrabold tracking-[-0.02em] text-[#f3e7d0]">{nation.short}나라</h2>
+                  <span className="rounded-full border border-[rgba(212,167,86,0.24)] bg-black/30 px-3 py-1 text-xs font-black text-[#dbc292]">
+                    {Math.min(rows.length, nationMemberSlotCount)} / {nationMemberSlotCount}
+                  </span>
+                </div>
                 <p className="text-sm font-medium leading-6 text-[#aa9a82]">{nation.description}</p>
               </div>
 
@@ -132,6 +142,22 @@ export default async function FactionsPage() {
                         </tr>
                       );
                     })}
+
+                    {Array.from({ length: emptySlotCount }, (_, index) => (
+                      <tr key={`${nation.key}-empty-${index}`} className="border-t border-[rgba(212,167,86,0.10)] text-[#7f7059]">
+                        <td className="whitespace-nowrap px-2 py-3 text-center">
+                          <span className="inline-flex items-center rounded-full bg-white/[0.03] px-2 py-1 text-[11px] font-bold text-[#8f8068] ring-1 ring-white/[0.08]">
+                            미입력
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center text-[14px] font-bold tracking-[-0.01em]">미입력</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center font-medium">-</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center font-medium">-</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center font-medium">-</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center font-medium">-</td>
+                        <td className="whitespace-nowrap px-2 py-3 text-center font-medium">-</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
